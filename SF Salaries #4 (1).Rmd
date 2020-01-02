@@ -1,0 +1,182 @@
+---
+title: "SF Salaries Project"
+author: "Justine Huynh and Seolleun Park"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:  html_document
+---
+
+```{r setup, include = F}
+library(ggplot2)
+library(tidyverse)
+library(scales)
+install.packages(ggrepel)
+library(ggrepel)
+#rm(list = ls())
+salary14 <- read_csv("C:/Users/Seongeun_2/Desktop/sfsalary2014.csv")
+```
+
+url: https://www.kaggle.com/ronaldtroncoso20/sf-salaries-extended
+
+###Executive Summary
+There are 11,348 full-time male workers, about 1.6 times higher than the number of full-time female workers of 6,683. Based on this data, we compared and analyzed the average and median values of men and women total salary. The total salary's mean was $ 99,052 for women and $ 110,178 for men. For base salary, the women's median and mean is $ 81,797 and $ 91,122, respectively. For men, the median  and mean is  $ 90,665 and $ 94,120, respectively. The median and mean of men's base salary all higher than the women's. Females do enjoy equal pay with men, but only when the salary is less than $100,000. Men dominated the jobs that pay more than $100,000, which leads to salary discrepancies between the sexes. Generally males total salary (including benefits) is higher than their female counterparts'.
+Females do enjoy more benefits than males do, but only up to a point. Males start to receive more benefit pay when the benefit pay is above $35,000.
+After accounting for benefits and other pay, while females do earn the same as males if their salaries are less than $100,000, males earn more than females if their cumulative salaries are above $100,000. This indicates that while San Francisco today is striving for equal pay, there are still salary discrepancies between the sexes at the higher end of the salaries.
+
+###Introduction to Data
+This data, called Sfsalary14, represents the salaries of workers in San Francisco from 2012 to 2014. All workers are divided between part-time workers and full-time workers. The salaries are divided into the following categories: base pay (money based on how many hours the workers worked), other pay (compensation, such as business trip costs and awards), benefits (sick leave, holiday pay, pension pay, etc), total pay (sum of base pay, other pay, and overtime pay) and total pay with benefits. The part-time worker's salary was based on how many hours the workers chose to work, and since the data set did not record how many hours the part-time workers worked, there was insufficient data to analyze the salaries of those workers. As a result, we set the analyzed only full-time workers. We hypothesize that men's wages would be higher than women's salaries because historically men have been paid more than women for the same amount of work.
+
+
+```{r, echo = T,fig.width=7, fig.height=4}
+salary14 %>% filter(gender!="", Status!="") %>% group_by(Status) %>% count(Status , gender) %>% 
+  ggplot()+geom_bar(aes(x=Status, y=n, fill=gender),stat="identity",position="dodge",alpha=0.7)+
+  scale_fill_manual(values = c("Magenta", "#00CCFF"),
+     name = "Gender",breaks = c("f", "m"),
+     labels = c("Female", "Male")) +
+  ylab("Number of People\n")+
+  theme(axis.title = element_text(size = 13))+
+  theme(legend.title = element_text(size = 13)) +
+  theme(axis.text = element_text(size = 12, color = "Black")) 
+  
+```
+```
+As described in the summary, there are about 1.6 times more men working full-time than their female counterparts. However, there are a few more women than men who occupy part-time jobs.
+```
+```{r, fig.width=7, fig.height=4, echo = T}
+meanTotalPay <- salary14 %>% 
+  filter(Status != "", gender != "") %>% 
+  group_by(gender, Status) %>% 
+  summarize(meanTotal = mean(TotalPay/1000))
+
+salary14 %>% 
+  filter(gender!="", Status!="") %>% 
+  select(Status, TotalPay, gender) %>% 
+  ggplot()+ geom_boxplot(aes(x=Status, y=TotalPay/1000, fill=gender), position="dodge",alpha=0.5)+
+  labs(x="\nStatus", y = "Total Pay (In Thousands)\n") +
+  scale_y_continuous(labels = dollar)+
+  geom_point(aes(x = Status, y = meanTotalPay$meanTotal, color = gender), data=meanTotalPay, size = 5) +
+  theme(axis.title = element_text(size = 13))+
+  theme(legend.title = element_text(size = 13)) +
+  theme(axis.text = element_text(size = 12, color = "Black"))
+
+
+```
+```
+The big colored points indicate the mean total pay of males and females (orange for females, blue for males), separated by full-time, part-time. The mean and the median of total pay of full-time workers are higher for men than for women. But for part-time jobs, both the female's mean and median of total pay were bigger than the male's. Notice that there is one extremely skewed outlier for part-time males that would have greatly skewed the mean total pay.
+```
+
+```{r gender vs TotalPay, fig.width=7, fig.height=4, echo = T}
+salary14 %>% 
+  filter(gender == "m" | gender == "f") %>% 
+  filter(Status == "FT") %>%   group_by(gender) %>% 
+  select(BasePay) %>%   ggplot() +
+  geom_violin(aes(x = gender, y = BasePay/1000, fill = gender), alpha = 0.5) +
+  geom_boxplot(aes(x= gender, y = BasePay/1000, fill = gender), alpha = 0.3) +
+  scale_y_continuous(labels = dollar, limits = c(0, 400), breaks = seq(0, 400, by = 50))+
+  theme(axis.title = element_text(size = 13))+
+  theme(legend.title = element_text(size = 13)) +
+  theme(axis.text = element_text(size = 12, color = "Black")) +
+  scale_x_discrete(limits = c("f","m"),breaks = c("f", "m"),
+                    labels = c("Female", "Male"))+
+  scale_fill_manual(values = c("Magenta", "#00CCff"),
+                    name = "Gender",breaks = c("f", "m"),
+                    labels = c("Female", "Male")) +
+  labs(x = "\nGender", y = "Base Pay (In Thousands)\n")
+```
+```
+As the base pay increases, the number of women receiving the base pay decreases, indicating either a pay discrepancy or less women occupy those higher-paying jobs. the number of males, on the other hand, fluctuate as the base pay increases. However, note that the median base pay of females ($ 81,797) is only slighty lower than their male counterparts' (90,665).
+
+```
+
+
+
+```{r, fig.width=7, fig.height=4, echo = T}
+meanTotalPay<- salary14 %>% 
+  filter(Status=="FT", gender!="") %>% 
+  group_by(gender) %>%  
+  summarize(meanTotal = mean(TotalPay/1000))
+
+  salary14 %>% 
+  filter(Status=="FT", gender!="") %>%  
+  ggplot()+
+  geom_density(aes(x = TotalPay/1000, fill = gender), alpha=0.5) +
+  scale_x_continuous(limits=c(0, 350), breaks=seq(0, 350, by=50)) +
+  geom_vline(aes(xintercept =  meanTotalPay$meanTotal[1]), color = "magenta") +
+  geom_vline(aes(xintercept =  meanTotalPay$meanTotal[2]), color = "dark blue")+
+  labs(x="\nTotal Pay Of Full Time Workers (In Thousands)", y = "Density\n") +
+  theme(axis.title = element_text(size = 13))+
+  theme(legend.title = element_text(size = 13)) +
+  theme(axis.text = element_text(size = 12, color = "Black")) +    scale_fill_manual(values = c("Magenta", "#00CCff"),name = "Gender",breaks = c("f", "m"),labels = c("Female", "Male"))
+
+```
+```
+The mean total pay of males (denoted by the dark blue vertical line) is about $12 thousand more than the mean total pay of females (denoted by the pink vertical line). Furthermore, women dominate the jobs that pay less than $100 thousand while men dominate the job positions that pay higher than $100 thousand. 
+```
+```{r, echo = T,fig.width=7, fig.height=4}
+thetop<-salary14  %>% filter(Status=="FT",gender!="") %>%  
+  group_by(gender)  %>% select(TotalPay,JobTitle,gender) %>% 
+  arrange(desc(TotalPay)) %>% head()
+
+salary14 %>% filter(Status=="FT",gender!="") %>% 
+  ggplot(aes(x=gender,y=TotalPay/1000,color=gender))+
+  geom_point(alpha=0.09)+
+  scale_color_manual(values = c("Magenta", "#00CCFF"),
+     name = "Gender", breaks = c("f", "m"),
+     labels = c("Female", "Male")) +
+  scale_x_discrete(limits = c("f","m"),breaks = c("f", "m"),
+                    labels = c("Female", "Male"))+
+  geom_label_repel(data=subset(thetop,TotalPay>390111),
+             aes(label=JobTitle))+
+    geom_label_repel(data=subset(thetop,TotalPay>329390.4,TotalPay<329390.6),aes(label=JobTitle))+
+    theme(axis.title = element_text(size = 13))+
+  theme(legend.title = element_text(size = 13)) +
+  theme(axis.text = element_text(size = 12, color = "Black")) +
+  labs(x="\nGender", y="Total Pay (In Thousands)\n")+
+  theme(legend.position="none")
+
+```
+```
+The jobs of the females who earned the top two total pay were both assitant medical examiners. For men, the jobs were battalion chief fire supressor and assistant chief of department. Also, take note that the two highest salary earners were both females, though, those females were the outliers and do not represent the majority of the other female workers.
+```
+
+```{r, echo = T,fig.width=7, fig.height=4}
+salary14 %>% 
+  filter(gender != "") %>% 
+  ggplot() +geom_density(aes(x = Benefits/1000, group = gender, fill = gender), alpha = 0.5) +
+  scale_x_continuous(limits=c(0, 100), breaks=seq(0, 100, by=10)) +
+  labs(x = "\nBenefits (In Thousands)", y = "Density\n") +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  theme(axis.title = element_text(size = 13)) +
+  theme(legend.title = element_text(size = 13))+
+  scale_fill_manual(values = c("Magenta", "#00CCff"),
+                    name = "Gender", breaks = c("f", "m"),
+                    labels = c("Female", "Male"))
+```
+```
+Women enjoyed more benefits than men did only when the benefits received were under $ 35,000. But for benefits over $ 35,000, more men enjoyed those benefits than females did. Though something interesting happens when we reach benefits around the $50,000 mark. Women receive more benefits than men do if the benefits received are between $ 50,000 and $ 60,000.
+```
+
+```{r, fig.width=7, fig.height=4, echo = T}
+salary14 %>% 
+  filter(gender != "") %>% 
+  group_by(gender) %>% 
+  select(gender, TotalPayBenefits) %>%
+  ggplot() +
+  geom_histogram(aes(x = TotalPayBenefits/1000, fill = gender), 
+                  binwidth = 50, alpha = 0.7, position = "dodge") +
+  labs(x = "\nTotal Pay With Benefits", y = "Number Of People\n") +
+  scale_x_continuous(breaks = seq(0, 350, by = 50)) +
+  scale_fill_manual(values = c("Magenta", "#00CCFF"),
+     name = "Gender",breaks = c("f", "m"),
+     labels = c("Female", "Male")) +
+  theme(axis.title = element_text(size = 13)) +
+  theme(axis.text = element_text(size = 12, color = "Black"))+
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+```
+
+```
+For the total pay with benefits that's more than $ 100,000, we can see that each amount has twice as many men as women. But even under $ 100,000, the number of women in each amount is smaller than the number of men. However, this difference is so minute we can safely conclude that there is an equal number of males and females for grand total salaries under $ 100,000. 
+```
+
+###Conclusion
+While the data set is conclusive, there is still some information missing that could have improved this report. For instance, the data lacked the number of years each worker worked, since salary increases the longer workers work. The data also failed to note a difference in the rate of salary increase and frequency of promotions between males and females, which could further explain why males tend to be paid more than females. Some other missing information include the number of years of education the workers completed, where they lived, and how many internships they had done. Noting the missing information, it may be possible to analyze the wage differences between the two sexes and understand why.
